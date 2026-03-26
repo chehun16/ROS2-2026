@@ -382,6 +382,10 @@ chmod +x run.sh
 
 Use WSL2 + Docker Desktop on Windows.
 
+> **Windows 10 vs Windows 11**
+> - Windows 11: WSLg (built-in GUI support) is available — no VcXsrv needed, more stable
+> - Windows 10: requires VcXsrv for GUI forwarding (Step 3)
+
 ### Step 1. Enable WSL2
 
 Run PowerShell as **Administrator**:
@@ -391,57 +395,96 @@ wsl --install
 wsl --set-default-version 2
 ```
 
-After restarting, install **Ubuntu 22.04** from the Microsoft Store.
+Restart, then install **Ubuntu 22.04** from the Microsoft Store.
 
 ### Step 2. Install Docker Desktop
 
 Download and install [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/).
 
-After installation: Docker Desktop → `Settings` → `Resources` → `WSL Integration`
-→ Enable the Ubuntu 22.04 toggle.
+After installation:
+1. Docker Desktop → `Settings` → `Resources` → `WSL Integration`
+2. Enable the **Ubuntu 22.04** toggle
+3. Click **Apply & Restart**
 
-### Step 3. Install VcXsrv (GUI forwarding)
+### Step 3. GUI Forwarding
+
+**Windows 11 (WSLg — recommended)**
+
+WSLg is built into Windows 11. No extra software needed — skip to Step 4.
+
+**Windows 10 (VcXsrv)**
 
 Download and install [VcXsrv](https://sourceforge.net/projects/vcxsrv/).
 
-When launching VcXsrv, use these settings:
+Launch VcXsrv with these settings:
 - Display number: `0`
 - Check **"Disable access control"**
 - Check **"Native opengl"**
 
-> VcXsrv must be running every time before you launch the container.
+When Windows Firewall prompts, click **Allow access** for both private and public networks.
+
+> VcXsrv must be running every time before launching the container.
 
 ### Step 4. Configure Environment in WSL2
 
-Open a WSL2 Ubuntu terminal:
+Open a WSL2 Ubuntu terminal and run:
+
+**Windows 11 (WSLg)**
 
 ```bash
-# Point DISPLAY at the Windows host IP (where VcXsrv is listening)
+# WSLg sets DISPLAY automatically — just add the OpenGL hint
+echo "export LIBGL_ALWAYS_INDIRECT=0" >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Windows 10 (VcXsrv)**
+
+```bash
+# Point DISPLAY at the Windows host IP where VcXsrv is listening
 export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0
 echo "export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0" >> ~/.bashrc
-export LIBGL_ALWAYS_INDIRECT=1
 echo "export LIBGL_ALWAYS_INDIRECT=1" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### Step 5. Clone and Run
+### Step 5. Clone and Build
 
 ```bash
-# In WSL2 Ubuntu terminal
 cd ~
 git clone <repo-url> ROS2-2026
 cd ROS2-2026
 
-# Build image (first time only, ~10-20 min)
+# Build Docker image (first time only, ~10-20 min)
 docker compose build
+```
 
+### Step 6. Run
+
+```bash
 # Run full system
 docker compose up bev_full
+
+# Open a development shell
+docker compose run --rm dev bash
+```
+
+### Step 7. Rebuild After Code Changes
+
+```bash
+# Inside the dev shell
+cd /ros2_ws
+colcon build --packages-select bev_navigation
+source install/setup.bash
+ros2 launch bev_navigation bev_navigation.launch.py
 ```
 
 > **Note**: `network_mode: host` is not used in this project because all ROS2 nodes
 > run inside a single container. Docker's default bridge network is sufficient and
 > is fully compatible with Windows Docker Desktop.
+>
+> **Performance note**: Gazebo requires OpenGL. On Windows 10 + VcXsrv, rendering
+> may be slow or unstable due to software OpenGL emulation. Windows 11 + WSLg
+> provides GPU-accelerated rendering and is significantly more stable.
 
 ---
 
