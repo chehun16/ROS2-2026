@@ -1,0 +1,401 @@
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /BEV Map1
+        - /PointCloud21
+        - /Navigation1
+      Splitter Ratio: 0.5
+    Tree Height: 800
+
+  - Class: rviz_common/Selection
+    Name: Selection
+
+  - Class: rviz_common/Tool Properties
+    Expanded:
+      - /2D Goal Pose1
+    Name: Tool Properties
+
+  - Class: rviz_common/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+
+Visualization Manager:
+  Class: ""
+  Displays:
+
+    # ------------------------------------------------------------------
+    # 기본 참조 격자
+    # ------------------------------------------------------------------
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Alpha: 0.5
+      Cell Size: 1
+      Color:
+        R: 0.5
+        G: 0.5
+        B: 0.5
+        A: 1.0
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 20
+      Reference Frame: map
+      Value: true
+
+    # ------------------------------------------------------------------
+    # 로봇 모델 (TurtleBot3)
+    # ------------------------------------------------------------------
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Alpha: 1
+      Description Topic: /robot_description
+      Links:
+        All Links Enabled: true
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+
+    # ------------------------------------------------------------------
+    # TF 좌표계 시각화
+    # ------------------------------------------------------------------
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Alpha: 0.5
+      Enabled: false       # 평소엔 끄고 디버깅 시에만 켬
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+      Marker Scale: 0.5
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        {}
+      Update Interval: 0
+      Value: false
+
+    # ------------------------------------------------------------------
+    # 정적 맵 (SLAM 결과)
+    # ------------------------------------------------------------------
+    - Class: rviz_default_plugins/Map
+      Name: Static Map
+      Alpha: 0.7
+      Color Scheme: map
+      Draw Behind: false
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /map
+      Update Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /map_updates
+      Use Timestamp: false
+      Value: true
+
+    # ------------------------------------------------------------------
+    # BEV Occupancy Map - 이 프로젝트의 핵심 시각화
+    # ------------------------------------------------------------------
+    - Class: rviz_default_plugins/Map
+      Name: BEV Map
+      Alpha: 0.85
+      Color Scheme: costmap    # 점유(빨강) / 빈공간(파랑) / 미탐색(회색)
+      Draw Behind: false
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /bev_map/occupancy
+      Use Timestamp: false
+      Value: true
+
+    # ------------------------------------------------------------------
+    # BEV PointCloud - Depth에서 변환된 3D 포인트
+    # ------------------------------------------------------------------
+    - Class: rviz_default_plugins/PointCloud2
+      Name: PointCloud2
+      Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Color:
+        R: 0.0
+        G: 0.6
+        B: 1.0
+        A: 1.0
+      Color Transformer: FlatColor   # 단색으로 표시 (높이별 색상은 AxisColor 사용)
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color:
+        R: 1
+        G: 1
+        B: 1
+        A: 1.0
+      Max Intensity: 4096
+      Min Color:
+        R: 0
+        G: 0
+        B: 0
+        A: 1.0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.019999999552965164
+      Style: Points
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /bev_map/pointcloud
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+
+    # ------------------------------------------------------------------
+    # Navigation - 글로벌 / 로컬 코스트맵 및 경로
+    # ------------------------------------------------------------------
+    - Class: rviz_common/DisplayGroup
+      Displays:
+
+        # 글로벌 코스트맵 (전체 경로 계획용)
+        - Class: rviz_default_plugins/Map
+          Name: Global Costmap
+          Alpha: 0.4
+          Color Scheme: costmap
+          Draw Behind: false
+          Topic:
+            Depth: 5
+            Durability Policy: Transient Local
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /global_costmap/costmap
+          Value: true
+
+        # 로컬 코스트맵 (장애물 회피용) - BEV 맵 반영 결과
+        - Class: rviz_default_plugins/Map
+          Name: Local Costmap
+          Alpha: 0.45
+          Color Scheme: costmap
+          Draw Behind: false
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /local_costmap/costmap
+          Value: true
+
+        # 글로벌 경로 (목표까지 전체 계획 경로)
+        - Class: rviz_default_plugins/Path
+          Name: Global Path
+          Alpha: 1
+          Buffer Length: 1
+          Color:
+            R: 0
+            G: 1
+            B: 0
+            A: 1.0
+          Head Diameter: 0.30000001192092896
+          Head Length: 0.20000000298023224
+          Length: 0.30000001192092896
+          Line Style: Lines
+          Line Width: 0.029999999329447746
+          Offset:
+            X: 0
+            Y: 0
+            Z: 0
+          Pose Color:
+            R: 1
+            G: 0.11764705926179886
+            B: 0.11764705926179886
+            A: 1.0
+          Pose Style: None
+          Radius: 0.029999999329447746
+          Shaft Diameter: 0.10000000149011612
+          Shaft Length: 0.10000000149011612
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /plan
+          Value: true
+
+        # 로컬 경로 (현재 추종 중인 경로)
+        - Class: rviz_default_plugins/Path
+          Name: Local Path
+          Alpha: 1
+          Buffer Length: 1
+          Color:
+            R: 1
+            G: 0.5
+            B: 0
+            A: 1.0
+          Line Style: Lines
+          Line Width: 0.05
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /local_plan
+          Value: true
+
+        # 목표 지점 마커
+        - Class: rviz_default_plugins/Pose
+          Name: Goal Pose
+          Alpha: 1
+          Axes Length: 1
+          Axes Radius: 0.10000000149011612
+          Color:
+            R: 1
+            G: 0.25
+            B: 0.0
+            A: 1.0
+          Head Diameter: 0.30000001192092896
+          Head Length: 0.20000000298023224
+          Shaft Diameter: 0.10000000149011612
+          Shaft Length: 1
+          Shape: Arrow
+          Topic:
+            Depth: 5
+            Durability Policy: Volatile
+            Filter size: 10
+            History Policy: Keep Last
+            Reliability Policy: Reliable
+            Value: /goal_pose
+          Value: true
+
+      Enabled: true
+      Name: Navigation
+
+    # ------------------------------------------------------------------
+    # 카메라 이미지 (RGB) - 우측 하단 패널용
+    # ------------------------------------------------------------------
+    - Class: rviz_default_plugins/Image
+      Name: Camera RGB
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Normalize Range: true
+      Queue Size: 2
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /processed/rgb
+      Value: true
+
+    # ------------------------------------------------------------------
+    # 네비게이션 상태 텍스트
+    # ------------------------------------------------------------------
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Nav Status
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /waypoints
+      Value: true
+
+  Enabled: true
+  Global Options:
+    Background Color:
+      R: 0.04
+      G: 0.04
+      B: 0.04
+      A: 1.0
+    Fixed Frame: map         # 모든 디스플레이의 기준 좌표계
+    Frame Rate: 30
+
+  Name: root
+
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+      Line color:
+        R: 1
+        G: 0
+        B: 0
+        A: 1.0
+    - Class: rviz_default_plugins/SetInitialPose
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /initialpose
+    - Class: rviz_default_plugins/SetGoal
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /goal_pose
+
+  Value: true
+
+  Views:
+    Current:
+      Class: rviz_default_plugins/TopDownOrtho   # BEV 시각화에 최적 - 위에서 내려다보는 뷰
+      Distance: 15
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Scale: 60
+      Target Frame: base_link   # 로봇 중심으로 화면 고정
+      Value: TopDownOrtho (rviz_default_plugins)
+      X: 0
+      Y: 0
+    Saved: ~

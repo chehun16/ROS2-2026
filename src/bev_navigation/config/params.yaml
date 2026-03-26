@@ -1,0 +1,27 @@
+# BEV Navigation 시스템 파라미터 설정
+# 모든 노드의 파라미터를 한 곳에서 관리
+
+rgbd_processor_node:
+  ros__parameters:
+    depth_min_m: 0.1      # 유효 depth 최솟값 (m) - 카메라 사각지대 제거
+    depth_max_m: 10.0     # 유효 depth 최댓값 (m) - 신뢰도 낮은 원거리 제거
+    queue_size:  10
+
+bev_occupancy_node:
+  ros__parameters:
+    camera_height_m:  0.3   # TurtleBot3 Waffle 카메라 높이 (m)
+    camera_pitch_deg: 15.0  # 카메라 하향 각도 (도) - 지면 관찰 위해 아래 향함
+    grid_resolution:  0.05  # 셀 크기 (m) - 5cm/cell → 10m 맵 = 200x200 grid
+    grid_size_m:      10.0  # BEV 맵 전체 크기 (m) - 로봇 중심 10m x 10m
+    obstacle_min_h:   0.05  # 장애물 최소 높이 (m) - 지면 노이즈 제거
+    obstacle_max_h:   2.0   # 장애물 최대 높이 (m) - 천장 제거
+    map_frame:        map
+    robot_frame:      base_link
+
+goal_sender_node:
+  ros__parameters:
+    goal_x:    3.0    # 목표 x 좌표 (map 프레임, m)
+    goal_y:    0.0    # 목표 y 좌표 (map 프레임, m)
+    goal_yaw:  0.0    # 도착 방향 (라디안)
+    map_frame: map
+    auto_send: true   # 시작 시 자동으로 목표 전송

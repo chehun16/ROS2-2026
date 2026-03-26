@@ -1,0 +1,81 @@
+version: "3.8"
+
+# =============================================================================
+# BEV Navigation Docker Compose
+#
+# Mac에서 ROS2 + Gazebo + RViz2 실행을 위한 구성.
+# GUI는 XQuartz(Mac X11 서버)를 통해 포워딩.
+#
+# 사전 준비:
+#   1. XQuartz 설치: brew install --cask xquartz
+#   2. XQuartz 실행 후 설정 → 보안 → "네트워크 클라이언트 허용" 체크
+#   3. 터미널 재시작 후: xhost +localhost
+# =============================================================================
+
+x-ros-common: &ros-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  environment:
+    - DISPLAY=host.docker.internal:0   # Mac XQuartz 연결
+    - QT_X11_NO_MITSHM=1
+    - TURTLEBOT3_MODEL=waffle
+    - ROS_DOMAIN_ID=0                  # 같은 네트워크의 ROS2 노드와 통신
+  volumes:
+    - ./src:/ros2_ws/src               # 소스 코드 마운트 (실시간 반영)
+    - /tmp/.X11-unix:/tmp/.X11-unix    # X11 소켓
+  network_mode: host                   # ROS2 DDS 통신을 위해 host 네트워크 사용
+  stdin_open: true
+  tty: true
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # 전체 시스템 (Gazebo + Nav2 + 프로젝트 노드 + RViz2 한번에 실행)
+  # ---------------------------------------------------------------------------
+  bev_full:
+    <<: *ros-common
+    container_name: bev_navigation_full
+    command: >
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        source /ros2_ws/install/setup.bash &&
+        ros2 launch bev_navigation bev_navigation.launch.py
+      "
+
+  # ---------------------------------------------------------------------------
+  # 개발용: 컨테이너 쉘 접속 (코드 수정 후 수동 빌드/실행)
+  # ---------------------------------------------------------------------------
+  dev:
+    <<: *ros-common
+    container_name: bev_navigation_dev
+    command: bash
+    volumes:
+      - ./src:/ros2_ws/src             # 소스 실시간 마운트
+      - ./config:/ros2_ws/config       # 설정 파일 마운트
+
+  # ---------------------------------------------------------------------------
+  # Gazebo만 단독 실행 (시뮬레이터 확인용)
+  # ---------------------------------------------------------------------------
+  gazebo:
+    <<: *ros-common
+    container_name: bev_gazebo
+    command: >
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        export TURTLEBOT3_MODEL=waffle &&
+        ros2 launch turtlebot3_gazebo turtlebot3_house.launch.py
+      "
+
+  # ---------------------------------------------------------------------------
+  # RViz2만 단독 실행 (시각화 확인용)
+  # ---------------------------------------------------------------------------
+  rviz:
+    <<: *ros-common
+    container_name: bev_rviz
+    command: >
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        source /ros2_ws/install/setup.bash &&
+        ros2 run rviz2 rviz2 -d /ros2_ws/install/bev_navigation/share/bev_navigation/config/bev_navigation.rviz
+      "
