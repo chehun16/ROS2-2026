@@ -16,6 +16,8 @@ setup(
             glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'),
             glob('config/*.yaml') + glob('config/*.rviz')),
+        (os.path.join('share', package_name, 'urdf'),
+            glob('urdf/*.xacro') + glob('urdf/*.urdf')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

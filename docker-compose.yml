@@ -3,35 +3,45 @@ version: "3.8"
 # =============================================================================
 # BEV Navigation Docker Compose
 #
-# Mac에서 ROS2 + Gazebo + RViz2 실행을 위한 구성.
-# GUI는 XQuartz(Mac X11 서버)를 통해 포워딩.
+# Supported platforms:
+#   Ubuntu 22.04/24.04 : DISPLAY=$DISPLAY docker compose up bev_full
+#   macOS (XQuartz)    : ./run.sh run
+#   Windows (WSL2)     : docker compose up bev_full  (VcXsrv must be running)
 #
-# 사전 준비:
-#   1. XQuartz 설치: brew install --cask xquartz
-#   2. XQuartz 실행 후 설정 → 보안 → "네트워크 클라이언트 허용" 체크
-#   3. 터미널 재시작 후: xhost +localhost
+# GUI prerequisite by platform:
+#   Ubuntu  → xhost +local:docker
+#   macOS   → XQuartz running + xhost +localhost
+#   Windows → VcXsrv running with "Disable access control" checked
 # =============================================================================
 
 x-ros-common: &ros-common
   build:
     context: .
     dockerfile: Dockerfile
+    platform: linux/amd64   # Required for Apple Silicon (Rosetta); safe on x86_64
   environment:
-    - DISPLAY=host.docker.internal:0   # Mac XQuartz 연결
+    # DISPLAY resolution priority:
+    #   1. Value passed via environment (Ubuntu: $DISPLAY, Windows WSL2: auto-set)
+    #   2. host.docker.internal:0 fallback (macOS XQuartz / Windows VcXsrv)
+    - DISPLAY=${DISPLAY:-host.docker.internal:0}
     - QT_X11_NO_MITSHM=1
     - TURTLEBOT3_MODEL=waffle
-    - ROS_DOMAIN_ID=0                  # 같은 네트워크의 ROS2 노드와 통신
+    - ROS_DOMAIN_ID=0
+    - LIBGL_ALWAYS_INDIRECT=${LIBGL_ALWAYS_INDIRECT:-0}
   volumes:
-    - ./src:/ros2_ws/src               # 소스 코드 마운트 (실시간 반영)
-    - /tmp/.X11-unix:/tmp/.X11-unix    # X11 소켓
-  network_mode: host                   # ROS2 DDS 통신을 위해 host 네트워크 사용
+    - ./src:/ros2_ws/src               # Live source mount
+    - /tmp/.X11-unix:/tmp/.X11-unix    # X11 socket (Linux only; ignored on Mac/Windows)
+  # network_mode: host is intentionally omitted.
+  # All ROS2 nodes run inside a single container (bev_full), so DDS communication
+  # works over the container's loopback without host networking.
+  # host mode is also unsupported on Windows Docker Desktop.
   stdin_open: true
   tty: true
 
 services:
 
   # ---------------------------------------------------------------------------
-  # 전체 시스템 (Gazebo + Nav2 + 프로젝트 노드 + RViz2 한번에 실행)
+  # Full system: Gazebo + SLAM + Nav2 + project nodes + RViz2 in one container
   # ---------------------------------------------------------------------------
   bev_full:
     <<: *ros-common
@@ -44,18 +54,17 @@ services:
       "
 
   # ---------------------------------------------------------------------------
-  # 개발용: 컨테이너 쉘 접속 (코드 수정 후 수동 빌드/실행)
+  # Development shell: attach for manual build/run after code changes
   # ---------------------------------------------------------------------------
   dev:
     <<: *ros-common
     container_name: bev_navigation_dev
     command: bash
     volumes:
-      - ./src:/ros2_ws/src             # 소스 실시간 마운트
-      - ./config:/ros2_ws/config       # 설정 파일 마운트
+      - ./src:/ros2_ws/src
 
   # ---------------------------------------------------------------------------
-  # Gazebo만 단독 실행 (시뮬레이터 확인용)
+  # Gazebo only: useful for verifying simulator independently
   # ---------------------------------------------------------------------------
   gazebo:
     <<: *ros-common
@@ -68,7 +77,7 @@ services:
       "
 
   # ---------------------------------------------------------------------------
-  # RViz2만 단독 실행 (시각화 확인용)
+  # RViz2 only: useful for verifying visualization independently
   # ---------------------------------------------------------------------------
   rviz:
     <<: *ros-common

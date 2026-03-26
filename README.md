@@ -1,59 +1,58 @@
-# ROS2-2026: Camera 기반 BEV Occupancy Map + 자율이동 시스템
+# ROS2-2026: Camera-based BEV Occupancy Map + Autonomous Navigation
 
-## 프로젝트 개요
-RGBD 카메라의 Depth 이미지를 Bird's Eye View(BEV) Occupancy Grid로 변환하여
-실내 환경에서 자율이동 로봇을 운용하는 ROS2 기반 시스템.
+## Overview
+A ROS2-based system that converts depth images from an RGBD camera into a Bird's Eye View (BEV) Occupancy Grid and uses it for autonomous indoor robot navigation.
 
-## 시스템 구조
+## System Architecture
 
 ```
-[Gazebo 시뮬레이터]
-  TurtleBot3 Waffle + RGBD 카메라 + 실내 환경(House)
+[Gazebo Simulator]
+  TurtleBot3 Waffle + RGBD Camera + Indoor Environment (House)
           │
           ▼ /camera/color/image_raw
           ▼ /camera/depth/image_raw
           ▼ /camera/color/camera_info
 ┌─────────────────────────┐
-│  Node 1: rgbd_processor │  RGBD 시간동기화 + Depth 전처리
+│  Node 1: rgbd_processor │  RGBD time sync + depth preprocessing
 └─────────────────────────┘
           │ /processed/depth
           │ /processed/camera_info
           ▼
 ┌─────────────────────────┐
-│  Node 2: bev_occupancy  │  ★ 핵심: Depth → BEV Occupancy Grid
-│                         │  (카메라 역투영 → 좌표변환 → 2D 투영)
+│  Node 2: bev_occupancy  │  ★ Core: Depth → BEV Occupancy Grid
+│                         │  (back-projection → coord transform → 2D projection)
 └─────────────────────────┘
           │ /bev_map/occupancy   (nav_msgs/OccupancyGrid)
           │ /bev_map/pointcloud  (sensor_msgs/PointCloud2)
           ▼
     ┌──────────┐    ┌──────────────────────┐
     │   Nav2   │    │  Node 3: goal_sender │
-    │ (기존    │◄───│  목표 지점 전송 +    │
-    │  패키지) │    │  이동 상태 모니터링  │
+    │          │◄───│  Send navigation goal│
+    │          │    │  + monitor status    │
     └──────────┘    └──────────────────────┘
           │
           ▼
-       RViz2 시각화
-       (BEV Map + PointCloud + 로봇 경로)
+       RViz2 Visualization
+       (BEV Map + PointCloud + Robot Path)
 ```
 
-## BEV 변환 핵심 수학
+## BEV Transformation Math
 
 ```
-Depth 이미지 픽셀 (u, v, d)
-    ↓ 카메라 핀홀 역투영
-3D 포인트 (카메라 좌표계)
+Depth image pixel (u, v, d)
+    ↓ Pinhole back-projection
+3D point in camera frame
     X_cam = (u - cx) * d / fx
     Y_cam = (v - cy) * d / fy
     Z_cam = d
-    ↓ 좌표계 변환 + 카메라 높이 보정 (Rx(-pitch) → R_axis)
-3D 포인트 (로봇 기준 월드 좌표계)
-    ↓ 높이 필터링 (0.05m ~ 2.0m → 장애물)
+    ↓ Coordinate transform + camera height offset (Rx(-pitch) → R_axis)
+3D point in robot world frame (base_link)
+    ↓ Height filtering (0.05m ~ 2.0m → obstacle)
 2D BEV Occupancy Grid
-    0: 빈 공간 / 100: 장애물 / -1: 미탐색
+    0: free space / 100: obstacle / -1: unknown
 ```
 
-## 패키지 구조
+## Package Structure
 
 ```
 ROS2-2026/
@@ -64,61 +63,61 @@ ROS2-2026/
     └── bev_navigation/
         ├── bev_navigation/
         │   ├── rgbd_processor_node.py   # Node 1
-        │   ├── bev_occupancy_node.py    # Node 2 (핵심)
+        │   ├── bev_occupancy_node.py    # Node 2 (core)
         │   ├── goal_sender_node.py      # Node 3
         │   └── utils/
-        │       └── bev_utils.py         # 수학 변환 로직
+        │       └── bev_utils.py         # Math transformation logic
         ├── config/
         │   ├── params.yaml
         │   ├── nav2_params.yaml
         │   └── bev_navigation.rviz
         ├── launch/
         │   └── bev_navigation.launch.py
+        ├── urdf/
+        │   └── turtlebot3_waffle_depth.urdf.xacro
         ├── test/
         │   └── test_bev_utils.py
         ├── package.xml
         └── setup.py
 ```
 
-## 필수 요구사항 충족
+## Requirements
 
-| 요구사항 | 충족 방법 |
-|---------|----------|
-| ROS2 기반 | ROS2 Humble, ament_python |
-| 최소 3개 노드 | rgbd_processor / bev_occupancy / goal_sender |
-| 센서 데이터 활용 | RGBD 카메라 (RGB + Depth 이미지) |
-| 결과 시각화 | RViz2: BEV OccupancyGrid + PointCloud + 경로 |
-| 시뮬레이션 | Gazebo + TurtleBot3 Waffle |
-| Demo | 실내 House 환경에서 장애물 회피 자율이동 |
-
----
-
-## 환경 설정 가이드
-
-> **ROS2 버전 호환표**
-> | OS | 권장 방식 | ROS2 버전 |
-> |----|----------|----------|
-> | Ubuntu 22.04 | 네이티브 설치 | Humble (공식 지원) |
-> | Ubuntu 24.04 | Docker 권장 | Humble은 미지원 → Docker로 해결 |
-> | macOS | Docker 필수 | - |
-> | Windows | Docker 필수 | - |
+| Requirement | Implementation |
+|-------------|----------------|
+| ROS2-based | ROS2 Humble, ament_python |
+| Minimum 3 nodes | rgbd_processor / bev_occupancy / goal_sender |
+| Sensor data | RGBD camera (RGB + Depth images) |
+| Visualization | RViz2: BEV OccupancyGrid + PointCloud + path |
+| Simulation | Gazebo + TurtleBot3 Waffle |
+| Demo | Obstacle-avoiding autonomous navigation in indoor House environment |
 
 ---
 
-## Ubuntu 22.04 (네이티브 — 권장)
+## Setup Guide
 
-ROS2 Humble을 직접 설치하는 방법입니다. 가장 안정적입니다.
+> **ROS2 Compatibility**
+> | OS | Recommended | ROS2 Version |
+> |----|-------------|-------------|
+> | Ubuntu 22.04 | Native install | Humble (officially supported) |
+> | Ubuntu 24.04 | Docker | Humble not supported natively → use Docker |
+> | macOS | Docker + XQuartz | - |
+> | Windows | Docker + WSL2 | - |
 
-### Step 1. ROS2 Humble 설치
+---
+
+## Ubuntu 22.04 (Native — Recommended)
+
+### Step 1. Install ROS2 Humble
 
 ```bash
-# UTF-8 로케일 설정
+# Set UTF-8 locale
 sudo apt update && sudo apt install -y locales
 sudo locale-gen en_US en_US.UTF-8
 sudo update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 export LANG=en_US.UTF-8
 
-# ROS2 apt 저장소 등록
+# Add ROS2 apt repository
 sudo apt install -y software-properties-common
 sudo add-apt-repository universe
 sudo apt update && sudo apt install -y curl
@@ -128,12 +127,12 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-a
     http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
     | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
 
-# ROS2 Humble Desktop 설치 (RViz2 포함)
+# Install ROS2 Humble Desktop (includes RViz2)
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y ros-humble-desktop
 ```
 
-### Step 2. 의존 패키지 설치
+### Step 2. Install Dependencies
 
 ```bash
 sudo apt install -y \
@@ -148,19 +147,22 @@ sudo apt install -y \
     ros-humble-cv-bridge \
     ros-humble-image-transport \
     ros-humble-depth-image-proc \
-    ros-humble-gazebo-ros-pkgs
+    ros-humble-gazebo-ros-pkgs \
+    ros-humble-xacro \
+    ros-humble-robot-state-publisher \
+    ros-humble-slam-toolbox
 
 pip3 install numpy opencv-python-headless
 ```
 
-### Step 3. rosdep 초기화
+### Step 3. Initialize rosdep
 
 ```bash
 sudo rosdep init
 rosdep update
 ```
 
-### Step 4. 환경변수 설정
+### Step 4. Set Environment Variables
 
 ```bash
 echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
@@ -168,7 +170,7 @@ echo "export TURTLEBOT3_MODEL=waffle"    >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### Step 5. 워크스페이스 빌드
+### Step 5. Build Workspace
 
 ```bash
 cd ~/ROS2-2026
@@ -177,7 +179,7 @@ colcon build --packages-select bev_navigation
 source install/setup.bash
 ```
 
-### Step 6. 실행
+### Step 6. Run
 
 ```bash
 ros2 launch bev_navigation bev_navigation.launch.py
@@ -185,12 +187,11 @@ ros2 launch bev_navigation bev_navigation.launch.py
 
 ---
 
-## Ubuntu 24.04 (Docker 사용)
+## Ubuntu 24.04 (Docker)
 
-Ubuntu 24.04에서 ROS2 Humble은 공식 지원하지 않습니다.
-Docker를 통해 Ubuntu 22.04 + Humble 환경을 구성합니다.
+ROS2 Humble is not officially supported on Ubuntu 24.04. Use Docker to run an Ubuntu 22.04 + Humble environment.
 
-### Step 1. Docker 설치
+### Step 1. Install Docker
 
 ```bash
 sudo apt update
@@ -207,37 +208,36 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-# sudo 없이 docker 사용
+# Run Docker without sudo
 sudo usermod -aG docker $USER
 newgrp docker
 ```
 
-### Step 2. GUI 포워딩 설정 (RViz2, Gazebo 화면 출력)
+### Step 2. Allow GUI Forwarding (for RViz2, Gazebo)
 
 ```bash
-# X11 로컬 접근 허용
 xhost +local:docker
 ```
 
-### Step 3. 워크스페이스로 이동 후 빌드 및 실행
+### Step 3. Build and Run
 
 ```bash
 cd ~/ROS2-2026
 
-# 이미지 빌드 (최초 1회, 10~20분 소요)
+# Build image (first time only, ~10-20 min)
 docker compose build
 
-# 전체 시스템 실행
+# Run full system
 DISPLAY=$DISPLAY docker compose up bev_full
 
-# 개발용 쉘 접속
+# Open a development shell
 DISPLAY=$DISPLAY docker compose run --rm dev bash
 ```
 
-### Step 4. 컨테이너 내부에서 빌드 (코드 수정 후)
+### Step 4. Rebuild Inside Container (after code changes)
 
 ```bash
-# 컨테이너 내부
+# Inside the container
 cd /ros2_ws
 colcon build --packages-select bev_navigation
 source install/setup.bash
@@ -248,145 +248,150 @@ ros2 launch bev_navigation bev_navigation.launch.py
 
 ## macOS
 
-Mac은 ROS2를 네이티브로 지원하지 않습니다. Docker + XQuartz를 사용합니다.
+ROS2 does not run natively on macOS. Use Docker + XQuartz for GUI forwarding.
 
-### Step 1. Homebrew 설치 (없는 경우)
+### Step 1. Install Homebrew (if not installed)
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-### Step 2. Docker Desktop 설치
+### Step 2. Install Docker Desktop
 
 ```bash
 brew install --cask docker
 ```
 
-Docker Desktop 앱을 실행하고 상단 메뉴바에 고래 아이콘이 뜰 때까지 대기.
+Launch Docker Desktop and wait until the whale icon appears in the menu bar.
 
-### Step 3. XQuartz 설치 (GUI 포워딩)
+### Step 3. Install XQuartz (GUI forwarding)
 
 ```bash
 brew install --cask xquartz
 ```
 
-설치 후 **반드시 로그아웃 → 재로그인** (또는 재시작).
+After installation, **log out and log back in** (or restart).
 
-### Step 4. XQuartz 설정
+### Step 4. Configure XQuartz
 
-XQuartz 앱 실행 → 메뉴바 `XQuartz` → `Settings` → `Security` 탭
-→ **"Allow connections from network clients" 체크** → XQuartz 재시작
+Open XQuartz → menu bar `XQuartz` → `Settings` → `Security` tab
+→ Check **"Allow connections from network clients"** → Restart XQuartz
 
-### Step 5. X11 접근 허용
+### Step 5. Allow X11 Access
 
 ```bash
-# 터미널에서 (매 세션마다 실행)
+# Run this every session
 xhost +localhost
 ```
 
-### Step 6. 이미지 빌드 및 실행
+### Step 6. Build and Run
 
 ```bash
 cd ~/ROS2-2026
 chmod +x run.sh
 
-# 이미지 빌드 (최초 1회, 10~20분 소요)
+# Build image (first time only, ~10-20 min)
 ./run.sh build
 
-# 전체 시스템 실행
+# Run full system
 ./run.sh run
 
-# 자주 쓰는 명령
-./run.sh gazebo   # Gazebo만 실행
-./run.sh rviz     # RViz2만 실행
-./run.sh dev      # 개발용 쉘
-./run.sh rebuild  # 코드 수정 후 재빌드
+# Other commands
+./run.sh gazebo   # Gazebo only
+./run.sh rviz     # RViz2 only
+./run.sh dev      # Development shell
+./run.sh rebuild  # Rebuild after code changes
 ```
 
-> **Apple Silicon (M1/M2/M3) 주의사항**
-> Docker Desktop에서 `Settings` → `General` → **"Use Rosetta for x86/amd64 emulation"** 활성화.
-> 또는 `docker-compose.yml`의 build 섹션에 `platform: linux/amd64` 추가.
+> **Apple Silicon (M1/M2/M3)**
+> In Docker Desktop: `Settings` → `General` → enable **"Use Rosetta for x86/amd64 emulation"**.
 
 ---
 
 ## Windows
 
-Windows에서는 WSL2 + Docker Desktop을 사용합니다.
+Use WSL2 + Docker Desktop on Windows.
 
-### Step 1. WSL2 활성화
+### Step 1. Enable WSL2
 
-PowerShell을 **관리자 권한**으로 실행:
+Run PowerShell as **Administrator**:
 
 ```powershell
 wsl --install
 wsl --set-default-version 2
 ```
 
-재시작 후 Microsoft Store에서 **Ubuntu 22.04** 설치.
+After restarting, install **Ubuntu 22.04** from the Microsoft Store.
 
-### Step 2. Docker Desktop 설치
+### Step 2. Install Docker Desktop
 
-[Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/) 다운로드 후 설치.
+Download and install [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/).
 
-설치 완료 후 Docker Desktop 실행 → `Settings` → `Resources` → `WSL Integration`
-→ Ubuntu 22.04 토글 **활성화**.
+After installation: Docker Desktop → `Settings` → `Resources` → `WSL Integration`
+→ Enable the Ubuntu 22.04 toggle.
 
-### Step 3. VcXsrv 설치 (GUI 포워딩)
+### Step 3. Install VcXsrv (GUI forwarding)
 
-[VcXsrv](https://sourceforge.net/projects/vcxsrv/) 다운로드 후 설치.
+Download and install [VcXsrv](https://sourceforge.net/projects/vcxsrv/).
 
-VcXsrv 실행 시 설정:
+When launching VcXsrv, use these settings:
 - Display number: `0`
-- **"Disable access control" 체크**
-- `-ac` 옵션 추가
+- Check **"Disable access control"**
+- Check **"Native opengl"**
 
-### Step 4. WSL2 Ubuntu 내부에서 환경 설정
+> VcXsrv must be running every time before you launch the container.
 
-WSL2 Ubuntu 터미널 열기:
+### Step 4. Configure Environment in WSL2
+
+Open a WSL2 Ubuntu terminal:
 
 ```bash
-# Windows 호스트 IP 확인 및 DISPLAY 설정
+# Point DISPLAY at the Windows host IP (where VcXsrv is listening)
 export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0
 echo "export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0" >> ~/.bashrc
-
-# X11 접근 허용
 export LIBGL_ALWAYS_INDIRECT=1
+echo "export LIBGL_ALWAYS_INDIRECT=1" >> ~/.bashrc
+source ~/.bashrc
 ```
 
-### Step 5. 워크스페이스 클론 및 실행
+### Step 5. Clone and Run
 
 ```bash
-# WSL2 Ubuntu 터미널
+# In WSL2 Ubuntu terminal
 cd ~
 git clone <repo-url> ROS2-2026
 cd ROS2-2026
 
-# 이미지 빌드 (최초 1회)
+# Build image (first time only, ~10-20 min)
 docker compose build
 
-# 전체 시스템 실행
+# Run full system
 docker compose up bev_full
 ```
 
+> **Note**: `network_mode: host` is not used in this project because all ROS2 nodes
+> run inside a single container. Docker's default bridge network is sufficient and
+> is fully compatible with Windows Docker Desktop.
+
 ---
 
-## 빠른 실행 요약
+## Quick Start Summary
 
-| 환경 | 실행 명령 |
-|------|----------|
+| Environment | Command |
+|-------------|---------|
 | Ubuntu 22.04 | `ros2 launch bev_navigation bev_navigation.launch.py` |
 | Ubuntu 24.04 | `DISPLAY=$DISPLAY docker compose up bev_full` |
 | macOS | `./run.sh run` |
 | Windows (WSL2) | `docker compose up bev_full` |
 
-## 테스트 실행
+## Running Tests
 
 ```bash
-# ROS2 환경 없이 Mac/로컬에서 바로 실행 가능
+# Run locally without ROS2 (Mac/any OS)
 pip install numpy pytest
 pytest src/bev_navigation/test/test_bev_utils.py -v
 
-# colcon test (ROS2 환경)
+# Run with colcon (requires ROS2 environment)
 colcon test --packages-select bev_navigation
 colcon test-result --verbose
 ```

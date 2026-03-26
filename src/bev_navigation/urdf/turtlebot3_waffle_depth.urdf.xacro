@@ -1,0 +1,139 @@
+<?xml version="1.0"?>
+<!--
+  TurtleBot3 Waffle + Depth 카메라 확장 모델
+
+  기본 TurtleBot3 Waffle URDF에 Intel RealSense D435 모사 Depth 카메라를 추가.
+  기본 모델에는 RGB 카메라만 있어 depth 토픽이 발행되지 않기 때문에 별도로 추가.
+
+  발행 토픽:
+    /camera/color/image_raw      (sensor_msgs/Image)
+    /camera/color/camera_info    (sensor_msgs/CameraInfo)
+    /camera/depth/image_raw      (sensor_msgs/Image, 32FC1 float meters)
+    /camera/depth/camera_info    (sensor_msgs/CameraInfo)
+    /camera/depth/points         (sensor_msgs/PointCloud2)  [선택적 활용]
+-->
+<robot name="turtlebot3_waffle_depth"
+       xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- TurtleBot3 Waffle 기본 모델 포함 -->
+  <xacro:include filename="$(find turtlebot3_description)/urdf/turtlebot3_waffle.urdf.xacro"/>
+
+  <!-- ================================================================
+       Depth 카메라 마운트 링크
+
+       위치 (base_link 기준):
+         x =  0.064m  전방 (기존 RGB 카메라와 같은 위치)
+         y = -0.065m  우측 (TurtleBot3 카메라 브래킷 위치)
+         z =  0.094m  높이 (지면 기준)
+
+       자세:
+         pitch = -15° = -0.261799 rad
+         → 카메라가 15° 아래를 향해 지면을 관찰
+         → bev_utils.py의 camera_pitch_rad = 0.261799과 일치
+  ================================================================ -->
+  <link name="camera_depth_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- Intel RealSense D435 근사 크기 -->
+        <box size="0.025 0.090 0.025"/>
+      </geometry>
+      <material name="dark_grey">
+        <color rgba="0.2 0.2 0.2 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.025 0.090 0.025"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.035"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0"
+               iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <joint name="camera_depth_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_depth_link"/>
+    <!-- pitch = -15도: 카메라가 15도 아래를 향함 -->
+    <origin xyz="0.064 -0.065 0.094" rpy="0 -0.261799 0"/>
+  </joint>
+
+  <!-- ================================================================
+       카메라 광학 프레임 (ROS 표준 optical frame)
+
+       ROS image coordinate convention:
+         Z: 이미지 정면 (광축 방향)
+         Y: 이미지 아래
+         X: 이미지 오른쪽
+
+       camera_depth_link (ROS body frame) → optical frame 변환:
+         rpy = "-π/2, 0, -π/2"
+  ================================================================ -->
+  <link name="camera_depth_optical_frame"/>
+
+  <joint name="camera_depth_optical_joint" type="fixed">
+    <parent link="camera_depth_link"/>
+    <child link="camera_depth_optical_frame"/>
+    <origin xyz="0 0 0" rpy="-1.5707963 0 -1.5707963"/>
+  </joint>
+
+  <!-- ================================================================
+       Gazebo Depth Camera 센서 플러그인
+
+       sensor type="depth": RGB + Depth 동시 발행
+       libgazebo_ros_camera.so: ROS2 가제보 카메라 플러그인
+
+       파라미터:
+         horizontal_fov = 80° (Intel RealSense D435 실제 스펙과 유사)
+         640x480 @ 30fps
+         near clip = 0.1m, far clip = 10.0m
+         gaussian noise stddev = 0.005m (5mm, 실제 RealSense 수준)
+  ================================================================ -->
+  <gazebo reference="camera_depth_link">
+    <sensor type="depth" name="depth_camera_sensor">
+      <always_on>true</always_on>
+      <update_rate>30.0</update_rate>
+      <visualize>false</visualize>
+
+      <camera name="depth_camera">
+        <horizontal_fov>1.39626340</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>10.0</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.005</stddev>
+        </noise>
+      </camera>
+
+      <plugin name="depth_camera_plugin" filename="libgazebo_ros_camera.so">
+        <ros>
+          <!-- Gazebo 내부 토픽 → 우리 프로젝트 토픽으로 리매핑 -->
+          <remapping>~/image_raw:=/camera/color/image_raw</remapping>
+          <remapping>~/camera_info:=/camera/color/camera_info</remapping>
+          <remapping>~/depth/image_raw:=/camera/depth/image_raw</remapping>
+          <remapping>~/depth/camera_info:=/camera/depth/camera_info</remapping>
+          <remapping>~/points:=/camera/depth/points</remapping>
+        </ros>
+        <camera_name>camera</camera_name>
+        <frame_name>camera_depth_optical_frame</frame_name>
+        <min_depth>0.1</min_depth>
+        <max_depth>10.0</max_depth>
+        <hack_baseline>0.0</hack_baseline>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+</robot>

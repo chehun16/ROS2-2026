@@ -100,7 +100,7 @@ class GoalSenderNode(Node):
         if self._goal_handle is not None:
             self._goal_handle.cancel_goal_async()
             self._navigating = False
-            self._publish_status('CANCELLED')
+            self._publish_status('CANCELED')
 
     # ------------------------------------------------------------------
     # Callbacks

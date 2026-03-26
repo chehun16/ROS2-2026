@@ -40,6 +40,12 @@ RUN apt-get update && apt-get install -y \
     # Gazebo ROS 연동
     ros-humble-gazebo-ros-pkgs \
     ros-humble-gazebo-ros2-control \
+    # URDF / 로봇 모델
+    ros-humble-xacro \
+    ros-humble-robot-state-publisher \
+    ros-humble-joint-state-publisher \
+    # SLAM
+    ros-humble-slam-toolbox \
     # 유틸
     ros-humble-rqt \
     ros-humble-rqt-common-plugins \

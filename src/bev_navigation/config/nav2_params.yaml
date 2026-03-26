@@ -26,7 +26,7 @@ controller_server:
     use_sim_time: true
     controller_frequency: 20.0   # 제어 주기 (Hz)
     min_x_velocity_threshold: 0.001
-    min_y_velocity_threshold: 0.5
+    min_y_velocity_threshold: 0.001  # 비홀로노믹: Y속도는 항상 0이므로 작은 값 사용
     min_theta_velocity_threshold: 0.001
     failure_tolerance: 0.3
 
