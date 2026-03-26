@@ -1,5 +1,23 @@
 # ROS2-2026: Camera-based BEV Occupancy Map + Autonomous Navigation
 
+## Table of Contents
+
+- [Overview](#overview)
+- [System Architecture](#system-architecture)
+- [How It Works](#how-it-works)
+- [BEV Transformation Math](#bev-transformation-math)
+- [Package Structure](#package-structure)
+- [Requirements](#requirements)
+- [Setup Guide](#setup-guide)
+  - [Ubuntu 22.04 (Native)](#ubuntu-2204-native--recommended)
+  - [Ubuntu 24.04 (Docker)](#ubuntu-2404-docker)
+  - [macOS](#macos)
+  - [Windows](#windows)
+- [Quick Start Summary](#quick-start-summary)
+- [Running Tests](#running-tests)
+
+---
+
 ## Overview
 A ROS2-based system that converts depth images from an RGBD camera into a Bird's Eye View (BEV) Occupancy Grid and uses it for autonomous indoor robot navigation.
 
@@ -35,6 +53,58 @@ A ROS2-based system that converts depth images from an RGBD camera into a Bird's
        RViz2 Visualization
        (BEV Map + PointCloud + Robot Path)
 ```
+
+## How It Works
+
+### Startup Sequence
+
+When launched, the system starts in this order:
+
+1. **Gazebo** — loads the House indoor environment and spawns the robot at `(0, 0)`
+2. **SLAM Toolbox** — builds a real-time map from LiDAR scans, publishes `/map`
+3. **Nav2** — initializes global/local costmaps and waits for a navigation goal
+4. **rgbd_processor** — begins receiving and preprocessing camera topics
+5. **bev_occupancy** — generates BEV map, publishes `/bev_map/occupancy` and `/bev_map/pointcloud`
+6. **goal_sender** — after 5 seconds, connects to Nav2 and sends the configured goal
+7. **RViz2** — visualizes everything in real time
+
+### Start and Goal Points
+
+- **Start**: where the robot spawns in Gazebo — default `(0, 0)` (set in launch file)
+- **Goal**: configured in `config/params.yaml`
+  ```yaml
+  goal_x: 3.0
+  goal_y: 0.0
+  ```
+  Change these values to set a different destination. No code changes needed.
+
+### Path Planning
+
+Path planning uses two layers:
+
+| Layer | Planner | Input | Role |
+|-------|---------|-------|------|
+| Global path | A* (NavFn) | SLAM `/map` | Plans full route from start to goal, avoiding known walls |
+| Local path | DWB Controller | BEV `/bev_map/pointcloud` | Follows global path while reacting to real-time obstacles |
+
+### Obstacle Detection
+
+```
+Camera depth image
+    ↓ Pinhole back-projection
+3D point cloud
+    ↓ Height filter: 0.05m ~ 2.0m → obstacle
+BEV OccupancyGrid  →  100: obstacle / 0: free / -1: unknown
+BEV PointCloud2    →  fed into Nav2 local costmap
+    ↓ InflationLayer (radius 0.55m)
+DWB Controller selects path avoiding high-cost cells
+```
+
+> The camera has an 80° horizontal FOV, so only obstacles within that field are
+> detected in real time. Static structures (walls, furniture) are covered by the
+> SLAM-built global map.
+
+---
 
 ## BEV Transformation Math
 
