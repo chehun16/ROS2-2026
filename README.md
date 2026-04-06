@@ -60,13 +60,15 @@ A ROS2-based system that converts depth images from an RGBD camera into a Bird's
 
 When launched, the system starts in this order:
 
-1. **Gazebo** — loads the House indoor environment and spawns the robot at `(0, 0)`
-2. **SLAM Toolbox** — builds a real-time map from LiDAR scans, publishes `/map`
-3. **Nav2** — initializes global/local costmaps and waits for a navigation goal
-4. **rgbd_processor** — begins receiving and preprocessing camera topics
-5. **bev_occupancy** — generates BEV map, publishes `/bev_map/occupancy` and `/bev_map/pointcloud`
-6. **goal_sender** — after 5 seconds, connects to Nav2 and sends the configured goal
-7. **RViz2** — visualizes everything in real time
+1. **Gazebo** — loads the House indoor world (no robot yet)
+2. **robot_state_publisher** — processes the custom URDF (with depth camera) and broadcasts the TF tree
+3. **spawn_entity** — spawns the custom robot into Gazebo (0.5 s after robot_state_publisher)
+4. **SLAM Toolbox** — builds a real-time map from LiDAR scans, publishes `/map`
+5. **Nav2** — initializes global/local costmaps and waits for a navigation goal
+6. **rgbd_processor** — begins receiving and preprocessing camera topics
+7. **bev_occupancy** — generates BEV map, publishes `/bev_map/occupancy` and `/bev_map/pointcloud`
+8. **goal_sender** — after 5 seconds, connects to Nav2 and sends the configured goal
+9. **RViz2** — visualizes everything in real time
 
 ### Start and Goal Points
 
